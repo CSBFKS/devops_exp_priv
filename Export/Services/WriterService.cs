@@ -50,6 +50,26 @@ namespace Export.Services
             private set;
         }
 
+
+        /// <summary>
+        /// Personal access token.
+        /// </summary>
+        public string Pat
+        {
+            get;
+            private set;
+        } = string.Empty;
+
+
+        /// <summary>
+        /// Azure DevOps collection URL.
+        /// </summary>
+        public string Url
+        {
+            get;
+            private set;
+        } = string.Empty;
+
         #endregion
 
 
@@ -108,6 +128,32 @@ namespace Export.Services
 
 
         /// <summary>
+        /// Sets the personal access token.
+        /// </summary>
+        /// <param name="pat">Personal access token.</param>
+        /// <returns>Returns <see cref="IWriterService"/>.</returns>
+        public IWriterService SetPat(string pat)
+        {
+            this.Pat = pat ?? string.Empty;
+
+            return this;
+        }
+
+
+        /// <summary>
+        /// Sets the Azure DevOps collection URL.
+        /// </summary>
+        /// <param name="url">Collection url address.</param>
+        /// <returns>Returns <see cref="IWriterService"/>.</returns>
+        public IWriterService SetUrl(string url)
+        {
+            this.Url = url ?? string.Empty;
+
+            return this;
+        }
+
+
+        /// <summary>
         /// Writes the index file.
         /// </summary>
         /// <param name="title">Output's title.</param>
@@ -118,15 +164,45 @@ namespace Export.Services
             ArgumentNullException.ThrowIfNull(this.WorkItems);
             ArgumentNullException.ThrowIfNull(this.OutputDirectory);
 
-            var children = this.WorkItems.Select(wit => new Models.WorkItem(wit)
-            {
-                Path = GetPaths(this.Relations, wit.Id ?? -1).First()
-            });
+            var children = this.WorkItems
+                .Where(wit => wit is not null)
+                .Select(wit => new Models.WorkItem(wit!)
+                {
+                    Path = GetPaths(this.Relations, wit!.Id ?? -1).First()
+                })
+                .OrderByDescending(wit => wit.LastChangedDate ?? DateTimeOffset.MinValue)
+                .ToList();
+
+            var overviewGroups = children
+                .GroupBy(wit => wit.StateCategory)
+                .Select(group => new
+                {
+                    Category = group.Key,
+                    Items = group.OrderByDescending(wit => wit.LastChangedDate ?? DateTimeOffset.MinValue)
+                        .Select(wit => new
+                        {
+                            Id = wit.Id,
+                            Title = wit.Title,
+                            State = wit.State,
+                            Folder = wit.Folder,
+                            LastChangedDate = wit.LastChangedDateDisplay,
+                            LastChangedBy = wit.LastChangedBy,
+                            CommentCount = wit.CommentsCount,
+                            AttachmentsCount = wit.Attachments.Count,
+                            Tags = wit.Tags
+                        })
+                        .ToList()
+                })
+                .OrderBy(group => group.Category.Equals("On hold", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                .ThenBy(group => group.Category, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
             var template = Handlebars.Compile(WriterService.IndexTemplate);
             var result = template(new
             {
                 Title = title,
-                Children = children
+                Children = children,
+                OverviewGroups = overviewGroups
             });
 
             using var file = new StreamWriter(Path.Combine(this.OutputDirectory.FullName, WriterService.IndexFile), false);
@@ -154,11 +230,37 @@ namespace Export.Services
                 Directory.CreateDirectory(folder);
             }
 
+            var comments = this.Comments.TryGetValue(wit.Id ?? -1, out var workItemComments)
+                ? workItemComments
+                : new List<WorkItemComment>();
+
+            var imageService = new EmbeddedImageService(this.Pat, this.Url, this);
+            var embeddedImages = new Dictionary<Guid, string>();
+
+            foreach (var html in new[] { wit.Description }.Concat(comments.Select(c => c.Text)))
+            {
+                foreach (var image in imageService.ExtractAndDownloadImages(html))
+                {
+                    embeddedImages[image.Key] = image.Value;
+                }
+            }
+
+            wit.DescriptionHtml = HtmlImageRewriter.RewriteAttachmentUrls(wit.Description, embeddedImages);
+
+            var processedComments = comments
+                .Select(c => new
+                {
+                    Text = HtmlImageRewriter.RewriteAttachmentUrls(c.Text, embeddedImages),
+                    CreatedDate = c.RevisedDate != default ? c.RevisedDate.ToString("yyyy-MM-dd HH:mm") : "—",
+                    CreatedBy = GetCommentAuthor(c)
+                })
+                .ToList();
+
             var template = Handlebars.Compile(WriterService.WorkItemTemplate);
             var result = template(new
             {
                 WorkItem = wit,
-                Comments = this.Comments[wit.Id ?? -1]
+                Comments = processedComments
             });
             using var file = new StreamWriter(Path.Combine(folder, WriterService.IndexFile), false);
             await file.WriteAsync(result);
@@ -180,7 +282,8 @@ namespace Export.Services
                 Directory.CreateDirectory(folder);
             }
 
-            using var writer = new FileStream(Path.Combine(folder, attachment.FileName), FileMode.Create, FileAccess.ReadWrite);
+            var path = Path.Combine(folder, attachment.FileName);
+            using var writer = new FileStream(path, FileMode.Create, FileAccess.ReadWrite);
             await content.CopyToAsync(writer);
         }
 
@@ -188,6 +291,31 @@ namespace Export.Services
 
 
         #region [ Methods : Private ]
+
+        /// <summary>
+        /// Gets a display-friendly author name for a comment.
+        /// </summary>
+        /// <param name="comment">Comment.</param>
+        /// <returns>Author display name.</returns>
+        private static string GetCommentAuthor(WorkItemComment comment)
+        {
+            if (comment.RevisedBy is null)
+            {
+                return "Unknown";
+            }
+
+            if (!string.IsNullOrWhiteSpace(comment.RevisedBy.DisplayName))
+            {
+                return comment.RevisedBy.DisplayName;
+            }
+
+            if (!string.IsNullOrWhiteSpace(comment.RevisedBy.UniqueName))
+            {
+                return comment.RevisedBy.UniqueName;
+            }
+
+            return "Unknown";
+        }
 
         /// <summary>
         /// Gets the list of paths

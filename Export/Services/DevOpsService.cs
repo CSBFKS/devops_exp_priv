@@ -166,7 +166,7 @@ namespace Export.Services
                 var wits = await client.Get().GetWorkItemsAsync(g.ToArray(), null, null, WorkItemExpand.All);
                 "ok".Success().Eol();
 
-                result.AddRange(wits);
+                result.AddRange(wits.Where(w => w is not null).Cast<Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models.WorkItem>());
             }
 
             return result;
@@ -204,7 +204,7 @@ namespace Export.Services
         /// <returns>List of streams.</returns>
         public IEnumerable<(Task<Stream> Content, Models.Attachment Attachment)> DownloadAttachmentsAsync(List<Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models.WorkItem> wits)
         {
-            var workitems = wits.Select(wit => new Models.WorkItem(wit));
+            var workitems = wits.Where(wit => wit is not null).Select(wit => new Models.WorkItem(wit!));
 
             foreach (var w in workitems)
             {
@@ -218,10 +218,10 @@ namespace Export.Services
                 foreach (var a in w.Attachments)
                 {
                     a.Name.Indent().Debug();
-                    Task<Stream> stream = null;
+                    Task<Stream>? stream = null;
                     try
                     {
-                        stream = client.Get().GetAttachmentContentAsync(a.Id);
+                        stream = this.GetAttachmentContentWithRetryAsync(client, a.Id, a.Name);
                         "ok".Success().Eol();
                     }
                     catch (Exception ex)
@@ -232,6 +232,34 @@ namespace Export.Services
                     yield return (Content: stream, Attachment: a);
                 }
             }
+        }
+
+        private async Task<Stream> GetAttachmentContentWithRetryAsync(DevOpsClient client, Guid id, string name)
+        {
+            const int maxAttempts = 3;
+            Exception? lastException = null;
+
+            for (var attempt = 1; attempt <= maxAttempts; attempt++)
+            {
+                try
+                {
+                    return await client.Get().GetAttachmentContentAsync(id);
+                }
+                catch (Exception ex) when (attempt < maxAttempts && IsTransientNetworkException(ex))
+                {
+                    lastException = ex;
+                    $"Retrying attachment download for '{name}' (attempt {attempt}/{maxAttempts})".Debug().Eol();
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)));
+                }
+            }
+
+            throw lastException ?? new IOException($"Failed to download attachment '{name}'.");
+        }
+
+
+        private static bool IsTransientNetworkException(Exception ex)
+        {
+            return ex is IOException or System.Net.Http.HttpRequestException or TimeoutException;
         }
 
         #endregion

@@ -44,6 +44,24 @@ namespace Export.Services
             get;
         }
 
+
+        /// <summary>
+        /// Personal access token.
+        /// </summary>
+        string Pat
+        {
+            get;
+        }
+
+
+        /// <summary>
+        /// Azure DevOps collection URL.
+        /// </summary>
+        string Url
+        {
+            get;
+        }
+
         #endregion
 
 
@@ -79,6 +97,22 @@ namespace Export.Services
         /// <param name="outputDirectory">Output directory.</param>
         /// <returns>Returns <see cref="IWriterService"/>.</returns>
         IWriterService SetOutputDirectory(DirectoryInfo outputDirectory);
+
+
+        /// <summary>
+        /// Sets the personal access token.
+        /// </summary>
+        /// <param name="pat">Personal access token.</param>
+        /// <returns>Returns <see cref="IWriterService"/>.</returns>
+        IWriterService SetPat(string pat);
+
+
+        /// <summary>
+        /// Sets the Azure DevOps collection URL.
+        /// </summary>
+        /// <param name="url">Collection url address.</param>
+        /// <returns>Returns <see cref="IWriterService"/>.</returns>
+        IWriterService SetUrl(string url);
 
 
         /// <summary>

@@ -14,6 +14,8 @@
         public const string ParentId = "System.Parent";
         public const string WorkItemType = "System.WorkItemType";
         public const string State = "System.State";
+        public const string ChangedDate = "System.ChangedDate";
+        public const string ChangedBy = "System.ChangedBy";
         public const string CommentCount = "System.CommentCount";
     }
 }

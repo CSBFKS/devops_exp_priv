@@ -134,6 +134,68 @@
                                                         font-size: .8em;
                                                         margin-left: 10px;
                                                     }
+
+                                                    .overview-group + .overview-group {
+                                                        margin-top: 18px;
+                                                    }
+
+                                                    .overview-group__title {
+                                                        margin: 0 0 8px 0;
+                                                        color: var(--mdc-theme-secondary);
+                                                        font-size: 1.1em;
+                                                    }
+
+                                                    .overview-list {
+                                                        list-style: none;
+                                                        padding: 0;
+                                                        margin: 0;
+                                                    }
+
+                                                    .overview-item {
+                                                        display: flex;
+                                                        flex-direction: column;
+                                                        gap: 4px;
+                                                        padding: 8px 10px;
+                                                        border-radius: 4px;
+                                                        background: rgba(255, 255, 255, 0.05);
+                                                    }
+
+                                                    .overview-item + .overview-item {
+                                                        margin-top: 8px;
+                                                    }
+
+                                                    .overview-item__meta {
+                                                        display: flex;
+                                                        flex-wrap: wrap;
+                                                        align-items: center;
+                                                        gap: 10px;
+                                                        font-size: 0.85em;
+                                                        color: var(--mdc-theme-text-secondary-on-dark);
+                                                    }
+
+                                                    .overview-item__title {
+                                                        font-weight: 600;
+                                                    }
+
+                                                    .overview-item__id {
+                                                        color: var(--mdc-theme-secondary);
+                                                        font-weight: 600;
+                                                    }
+
+                                                    img {
+                                                        max-width: 100%;
+                                                        height: auto;
+                                                    }
+
+                                                    .comment__meta {
+                                                        display: flex;
+                                                        justify-content: space-between;
+                                                        align-items: center;
+                                                        gap: 12px;
+                                                        margin-bottom: 8px;
+                                                        font-size: 0.85em;
+                                                        color: var(--mdc-theme-text-secondary-on-dark);
+                                                    }
                                                 </style>
                                             </head>
                                             <body class="container mdc-typography">
@@ -143,28 +205,26 @@
                                                             <h4 class="mdc-typography--headline4">{{Title}}</h4>
                                                         </div>
                                                         <div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-12">
-                                                            <ul class="toc">
-                                                                {{#each Children}}
-                                                                    <li class="toc__item toc__item--level-{{Level}}">
-                                                                        <a href="{{Folder}}/index.html"><span>{{Title}}</span><small>{{State}}</small></a>
-                                                                        {{#if Tags.Length}}
-                                                                            <div class="mdc-chip-set">
-                                                                                {{#each Tags}}
-                                                                                    <div class="mdc-chip">
-                                                                                        <span class="mdc-chip__text">{{this}}</span>
-                                                                                    </div>
-                                                                                {{/each}}
-                                                                            </div>
-                                                                        {{/if}}
-                                                                        {{#if CommentsCount}}
-                                                                        <span class="comment__count"><i class="material-icons">comment</i>&nbsp;{{CommentsCount}}</span>
-                                                                        {{/if}}
-                                                                        {{#if Attachments.Count}}
-                                                                        <span class="comment__count"><i class="material-icons">attachment</i>&nbsp;{{Attachments.Count}}</span>
-                                                                        {{/if}}
-                                                                    </li>
-                                                                {{/each}}
-                                                            </ul>
+                                                            {{#each OverviewGroups}}
+                                                                <div class="overview-group">
+                                                                    <h5 class="overview-group__title">{{Category}}</h5>
+                                                                    <ul class="overview-list">
+                                                                        {{#each Items}}
+                                                                            <li class="overview-item">
+                                                                                <a class="overview-item__title" href="{{Folder}}/index.html">{{Title}}</a>
+                                                                                <div class="overview-item__meta">
+                                                                                    <span class="overview-item__id">#{{Id}}</span>
+                                                                                    <span>{{State}}</span>
+                                                                                    <span>Last change: {{LastChangedDate}}</span>
+                                                                                    <span>by {{LastChangedBy}}</span>
+                                                                                    {{#if CommentCount}}<span><i class="material-icons">comment</i>&nbsp;{{CommentCount}}</span>{{/if}}
+                                                                                    {{#if AttachmentsCount}}<span><i class="material-icons">attachment</i>&nbsp;{{AttachmentsCount}}</span>{{/if}}
+                                                                                </div>
+                                                                            </li>
+                                                                        {{/each}}
+                                                                    </ul>
+                                                                </div>
+                                                            {{/each}}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -303,7 +363,7 @@
                                                         {{#if WorkItem.Description.Length}}
                                                         <div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-12">
                                                             <label>Description</label>
-                                                            <div class="comment mdc-elevation--z4">{{{WorkItem.Description}}}</div>
+                                                            <div class="comment mdc-elevation--z4">{{{WorkItem.DescriptionHtml}}}</div>
                                                         </div>
                                                         {{/if}}
                                                         {{#if WorkItem.Attachments.Count}}
@@ -320,7 +380,13 @@
                                                             <div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-12">
                                                                 <label>Comments</label>
                                                                 {{#each Comments}}
-                                                                    <div class="comment mdc-elevation--z4">{{{Text}}}</div>
+                                                                    <div class="comment mdc-elevation--z4">
+                                                                        <div class="comment__meta">
+                                                                            <span>{{CreatedBy}}</span>
+                                                                            <span>{{CreatedDate}}</span>
+                                                                        </div>
+                                                                        <div>{{{Text}}}</div>
+                                                                    </div>
                                                                 {{/each}}
                                                             </div>
                                                         {{/if}}
