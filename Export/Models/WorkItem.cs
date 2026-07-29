@@ -52,6 +52,16 @@ namespace Export.Models
 
 
         /// <summary>
+        /// Processed description HTML for rendering.
+        /// </summary>
+        public string DescriptionHtml
+        {
+            get;
+            set;
+        }
+
+
+        /// <summary>
         /// Tags.
         /// </summary>
         public string[] Tags
@@ -84,6 +94,44 @@ namespace Export.Models
         public string IterationPath
         {
             get => string.Join(@"\", ((string)this.Fields.GetValueOrDefault(Models.Fields.IterationPath, string.Empty)).Split(@"\").Skip(1).Select(i => i));
+        }
+
+
+        /// <summary>
+        /// Last change timestamp.
+        /// </summary>
+        public DateTimeOffset? LastChangedDate
+        {
+            get;
+            private set;
+        }
+
+
+        /// <summary>
+        /// Display string for the last change timestamp.
+        /// </summary>
+        public string LastChangedDateDisplay
+        {
+            get => this.LastChangedDate.HasValue ? this.LastChangedDate.Value.ToString("yyyy-MM-dd HH:mm") : "—";
+        }
+
+
+        /// <summary>
+        /// Last change user.
+        /// </summary>
+        public string LastChangedBy
+        {
+            get;
+            private set;
+        } = string.Empty;
+
+
+        /// <summary>
+        /// Overview category for sorting and grouping.
+        /// </summary>
+        public string StateCategory
+        {
+            get => GetStateCategory(this.State);
         }
 
 
@@ -140,6 +188,38 @@ namespace Export.Models
             return sb.ToString();
         }
 
+
+        /// <summary>
+        /// Maps the work item state to a grouping category.
+        /// </summary>
+        /// <param name="state">State value.</param>
+        /// <returns>Category label.</returns>
+        private static string GetStateCategory(string? state)
+        {
+            if (string.IsNullOrWhiteSpace(state))
+            {
+                return "Other";
+            }
+
+            var normalized = state.Trim().ToLowerInvariant();
+            if (normalized.Contains("hold") || normalized.Contains("blocked") || normalized.Contains("waiting"))
+            {
+                return "On hold";
+            }
+
+            if (normalized.Contains("done") || normalized.Contains("closed") || normalized.Contains("resolved"))
+            {
+                return "Done";
+            }
+
+            if (normalized.Contains("active") || normalized.Contains("new") || normalized.Contains("approved"))
+            {
+                return "Active";
+            }
+
+            return state.Trim();
+        }
+
         #endregion
 
 
@@ -149,13 +229,39 @@ namespace Export.Models
         /// Constructor.
         /// </summary>
         /// <param name="source">Source work item.</param>
-        public WorkItem(Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models.WorkItem source)
+        public WorkItem(Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models.WorkItem? source)
         {
+            if (source is null)
+            {
+                this.Fields = new Dictionary<string, object>();
+                this.Relations = new List<WorkItemRelation>();
+                this.Url = string.Empty;
+                this.Attachments = new List<Models.Attachment>();
+                this.DescriptionHtml = string.Empty;
+                return;
+            }
+
             this.Id = source.Id;
-            this.Fields = source.Fields;
-            this.Relations = source.Relations;
-            this.Url = source.Url;
-            this.Attachments = source.Relations.Where(r => r.Rel == "AttachedFile").Select(a => new Models.Attachment(a)).ToList();
+            this.Fields = source.Fields ?? new Dictionary<string, object>();
+            this.Relations = source.Relations ?? new List<WorkItemRelation>();
+            this.Url = source.Url ?? string.Empty;
+            this.Attachments = source.Relations?.Where(r => r.Rel == "AttachedFile").Select(a => new Models.Attachment(a)).ToList() ?? new List<Models.Attachment>();
+            this.DescriptionHtml = this.Description;
+
+            if (source.Fields?.TryGetValue(Models.Fields.ChangedDate, out var changedDate) == true)
+            {
+                this.LastChangedDate = changedDate switch
+                {
+                    DateTimeOffset dto => dto,
+                    DateTime dt => new DateTimeOffset(dt),
+                    _ => null
+                };
+            }
+
+            if (source.Fields?.TryGetValue(Models.Fields.ChangedBy, out var changedBy) == true)
+            {
+                this.LastChangedBy = changedBy?.ToString() ?? string.Empty;
+            }
         }
 
         #endregion

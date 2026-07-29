@@ -29,7 +29,14 @@ namespace Export
         /// <returns>Returns status code.</returns>
         public static async Task<int> Main(string[] args)
         {
-            Console.Clear();
+            try
+            {
+                Console.Clear();
+            }
+            catch (IOException)
+            {
+                // Ignore when the process is running without a console.
+            }
 
             var services = new ServiceCollection()
                 .AddSingleton<IDevOpsService, DevOpsService>()
@@ -69,9 +76,13 @@ namespace Export
                 var comments = await devops.GetCommentsAsync(ids);
 
                 // Setup writer service
+                ArgumentNullException.ThrowIfNull(output);
+
                 var writer = services
                     .GetRequiredService<IWriterService>()
                     .SetOutputDirectory(output)
+                    .SetPat(token)
+                    .SetUrl(url)
                     .SetWorkItems(wits)
                     .SetRelations(devops.Relations)
                     .SetComments(comments);
