@@ -32,7 +32,15 @@ namespace Export.Models
         /// </summary>
         public string FileName
         {
-            get => $"{this.Id.ToString()}{Path.GetExtension(this.Name)}";
+            get
+            {
+                if (this.Attributes.TryGetValue("name", out var name) && name is string configuredName && !string.IsNullOrWhiteSpace(configuredName))
+                {
+                    return Path.GetFileName(configuredName);
+                }
+
+                return $"{this.Id.ToString()}{Path.GetExtension(this.Name)}";
+            }
         }
 
         #endregion

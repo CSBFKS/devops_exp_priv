@@ -7,7 +7,7 @@ namespace Export.Tests;
 public class HtmlImageRewriterTests
 {
     [Fact]
-    public void RewriteAttachmentUrls_ConvertsMarkdownImageSyntaxToHtmlImages()
+    public void RewriteAttachmentUrls_ConvertsMarkdownImageSyntaxToLinks()
     {
         var html = "![image.png](../.attachments/image.png)";
         var attachmentFiles = new Dictionary<Guid, string>
@@ -17,8 +17,7 @@ public class HtmlImageRewriterTests
 
         var result = HtmlImageRewriter.RewriteAttachmentUrls(html, attachmentFiles);
 
-        Assert.Contains("<img", result);
-        Assert.Contains("src=\"../.attachments/image.png\"", result);
+        Assert.Contains("<a href=\"../.attachments/image.png\">image.png</a>", result);
         Assert.DoesNotContain("![image.png]", result);
     }
 
@@ -33,8 +32,23 @@ public class HtmlImageRewriterTests
 
         var result = HtmlImageRewriter.RewriteAttachmentUrls(html, attachmentFiles);
 
-        Assert.Contains("alt=\"My &quot;quoted&quot; image\"", result);
-        Assert.Contains("src=\"../.attachments/sample &amp; file.png\"", result);
+        Assert.Contains("My &quot;quoted&quot; image", result);
+        Assert.Contains("href=\"../.attachments/sample &amp; file.png\"", result);
+    }
+
+    [Fact]
+    public void RewriteAttachmentUrls_ConvertsHtmlImageTagsToLinks()
+    {
+        var html = "<div><img src=\"https://example.test/_apis/wit/attachments/11111111-1111-1111-1111-111111111111?fileName=sample.png\" alt=\"Sample image\"></div>";
+        var attachmentFiles = new Dictionary<Guid, string>
+        {
+            [Guid.Parse("11111111-1111-1111-1111-111111111111")] = "sample.png"
+        };
+
+        var result = HtmlImageRewriter.RewriteAttachmentUrls(html, attachmentFiles);
+
+        Assert.Contains("<a href=\"../.attachments/sample.png\">Sample image</a>", result);
+        Assert.DoesNotContain("<img", result);
     }
 
     [Fact]
@@ -51,6 +65,23 @@ public class HtmlImageRewriterTests
         var workItem = new WorkItem(source);
 
         Assert.Equal("On hold", workItem.StateCategory);
+    }
+
+    [Fact]
+    public void WorkItem_Category_ReturnsSystemCategoryWhenAvailable()
+    {
+        var source = new Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models.WorkItem
+        {
+            Fields = new Dictionary<string, object>
+            {
+                [Fields.Category] = "Requirement",
+                [Fields.WorkItemType] = "Task"
+            }
+        };
+
+        var workItem = new WorkItem(source);
+
+        Assert.Equal("Requirement", workItem.Category);
     }
 
     [Fact]

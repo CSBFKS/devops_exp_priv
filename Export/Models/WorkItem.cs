@@ -52,9 +52,28 @@ namespace Export.Models
 
 
         /// <summary>
+        /// Repro steps.
+        /// </summary>
+        public string ReproSteps
+        {
+            get => (string)this.Fields.GetValueOrDefault(Models.Fields.ReproSteps, string.Empty);
+        }
+
+
+        /// <summary>
         /// Processed description HTML for rendering.
         /// </summary>
         public string DescriptionHtml
+        {
+            get;
+            set;
+        }
+
+
+        /// <summary>
+        /// Processed repro steps HTML for rendering.
+        /// </summary>
+        public string ReproStepsHtml
         {
             get;
             set;
@@ -85,6 +104,15 @@ namespace Export.Models
         public string State
         {
             get => (string)this.Fields.GetValueOrDefault(Models.Fields.State, string.Empty);
+        }
+
+
+        /// <summary>
+        /// Category.
+        /// </summary>
+        public string Category
+        {
+            get => (string)this.Fields.GetValueOrDefault(Models.Fields.Category, string.Empty);
         }
 
 
@@ -238,6 +266,7 @@ namespace Export.Models
                 this.Url = string.Empty;
                 this.Attachments = new List<Models.Attachment>();
                 this.DescriptionHtml = string.Empty;
+                this.ReproStepsHtml = string.Empty;
                 return;
             }
 
@@ -247,6 +276,7 @@ namespace Export.Models
             this.Url = source.Url ?? string.Empty;
             this.Attachments = source.Relations?.Where(r => r.Rel == "AttachedFile").Select(a => new Models.Attachment(a)).ToList() ?? new List<Models.Attachment>();
             this.DescriptionHtml = this.Description;
+            this.ReproStepsHtml = this.ReproSteps;
 
             if (source.Fields?.TryGetValue(Models.Fields.ChangedDate, out var changedDate) == true)
             {

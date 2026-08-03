@@ -145,6 +145,23 @@
                                                         font-size: 1.1em;
                                                     }
 
+                                                    .overview-nav {
+                                                        display: flex;
+                                                        flex-wrap: wrap;
+                                                        align-items: center;
+                                                        gap: 10px;
+                                                        margin-bottom: 16px;
+                                                    }
+
+                                                    .overview-nav a {
+                                                        color: var(--mdc-theme-secondary);
+                                                        text-decoration: none;
+                                                    }
+
+                                                    .overview-nav a:hover {
+                                                        text-decoration: underline;
+                                                    }
+
                                                     .overview-list {
                                                         list-style: none;
                                                         padding: 0;
@@ -205,9 +222,19 @@
                                                             <h4 class="mdc-typography--headline4">{{Title}}</h4>
                                                         </div>
                                                         <div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-12">
+                                                            {{#if OverviewGroups.length}}
+                                                                <div class="overview-nav">
+                                                                    <span>Status types:</span>
+                                                                    <div>
+                                                                        {{#each OverviewGroups}}
+                                                                            <a href="#{{AnchorId}}">{{Category}}</a>{{#unless @last}} · {{/unless}}
+                                                                        {{/each}}
+                                                                    </div>
+                                                                </div>
+                                                            {{/if}}
                                                             {{#each OverviewGroups}}
                                                                 <div class="overview-group">
-                                                                    <h5 class="overview-group__title">{{Category}}</h5>
+                                                                    <h5 class="overview-group__title" id="{{AnchorId}}">{{Category}}</h5>
                                                                     <ul class="overview-list">
                                                                         {{#each Items}}
                                                                             <li class="overview-item">
@@ -215,8 +242,8 @@
                                                                                 <div class="overview-item__meta">
                                                                                     <span class="overview-item__id">#{{Id}}</span>
                                                                                     <span>{{State}}</span>
+                                                                                    {{#if Category}}<span>Category: {{Category}}</span>{{/if}}
                                                                                     <span>Last change: {{LastChangedDate}}</span>
-                                                                                    <span>by {{LastChangedBy}}</span>
                                                                                     {{#if CommentCount}}<span><i class="material-icons">comment</i>&nbsp;{{CommentCount}}</span>{{/if}}
                                                                                     {{#if AttachmentsCount}}<span><i class="material-icons">attachment</i>&nbsp;{{AttachmentsCount}}</span>{{/if}}
                                                                                 </div>
@@ -364,6 +391,26 @@
                                                         <div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-12">
                                                             <label>Description</label>
                                                             <div class="comment mdc-elevation--z4">{{{WorkItem.DescriptionHtml}}}</div>
+                                                            {{#if DescriptionImages.length}}
+                                                                <ul class="attachments">
+                                                                    {{#each DescriptionImages}}
+                                                                        <li><a href="../.attachments/{{FileName}}">{{Name}}</a></li>
+                                                                    {{/each}}
+                                                                </ul>
+                                                            {{/if}}
+                                                        </div>
+                                                        {{/if}}
+                                                        {{#if WorkItem.ReproSteps.Length}}
+                                                        <div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-12">
+                                                            <label>Repro Steps</label>
+                                                            <div class="comment mdc-elevation--z4">{{{WorkItem.ReproStepsHtml}}}</div>
+                                                            {{#if ReproStepsImages.length}}
+                                                                <ul class="attachments">
+                                                                    {{#each ReproStepsImages}}
+                                                                        <li><a href="../.attachments/{{FileName}}">{{Name}}</a></li>
+                                                                    {{/each}}
+                                                                </ul>
+                                                            {{/if}}
                                                         </div>
                                                         {{/if}}
                                                         {{#if WorkItem.Attachments.Count}}
@@ -386,6 +433,13 @@
                                                                             <span>{{CreatedDate}}</span>
                                                                         </div>
                                                                         <div>{{{Text}}}</div>
+                                                                        {{#if EmbeddedImages.length}}
+                                                                            <ul class="attachments">
+                                                                                {{#each EmbeddedImages}}
+                                                                                    <li><a href="../.attachments/{{FileName}}">{{Name}}</a></li>
+                                                                                {{/each}}
+                                                                            </ul>
+                                                                        {{/if}}
                                                                     </div>
                                                                 {{/each}}
                                                             </div>
