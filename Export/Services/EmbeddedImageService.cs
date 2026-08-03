@@ -79,7 +79,16 @@ namespace Export.Services
                     if ((segments.Length == 2) && segments[0].Equals("fileName", StringComparison.OrdinalIgnoreCase))
                     {
                         var fileName = Uri.UnescapeDataString(segments[1]);
-                        return Path.GetFileName(fileName);
+                        var extension = Path.GetExtension(fileName);
+                        var baseName = Path.GetFileNameWithoutExtension(fileName);
+
+                        if (string.IsNullOrWhiteSpace(baseName) || baseName.Equals("image", StringComparison.OrdinalIgnoreCase) || baseName.Equals("attachment", StringComparison.OrdinalIgnoreCase))
+                        {
+                            return $"{attachmentId}{(string.IsNullOrWhiteSpace(extension) ? ".png" : extension)}";
+                        }
+
+                        var safeBaseName = Regex.Replace(baseName, "[^a-zA-Z0-9._-]+", "-");
+                        return $"{safeBaseName}-{attachmentId}{(string.IsNullOrWhiteSpace(extension) ? ".png" : extension)}";
                     }
                 }
             }

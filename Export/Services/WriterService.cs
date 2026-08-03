@@ -1,4 +1,6 @@
-﻿using Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models;
+﻿using System.Text.RegularExpressions;
+
+using Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models;
 
 using HandlebarsDotNet;
 
@@ -178,12 +180,14 @@ namespace Export.Services
                 .Select(group => new
                 {
                     Category = group.Key,
+                    AnchorId = GetAnchorId(group.Key),
                     Items = group.OrderByDescending(wit => wit.LastChangedDate ?? DateTimeOffset.MinValue)
                         .Select(wit => new
                         {
                             Id = wit.Id,
                             Title = wit.Title,
                             State = wit.State,
+                            Category = wit.Category,
                             Folder = wit.Folder,
                             LastChangedDate = wit.LastChangedDateDisplay,
                             LastChangedBy = wit.LastChangedBy,
@@ -237,22 +241,59 @@ namespace Export.Services
             var imageService = new EmbeddedImageService(this.Pat, this.Url, this);
             var embeddedImages = new Dictionary<Guid, string>();
 
-            foreach (var html in new[] { wit.Description }.Concat(comments.Select(c => c.Text)))
+            var descriptionImages = imageService.ExtractAndDownloadImages(wit.Description);
+            foreach (var image in descriptionImages)
             {
-                foreach (var image in imageService.ExtractAndDownloadImages(html))
-                {
-                    embeddedImages[image.Key] = image.Value;
-                }
+                embeddedImages[image.Key] = image.Value;
+            }
+
+            var reproStepsImages = imageService.ExtractAndDownloadImages(wit.ReproSteps);
+            foreach (var image in reproStepsImages)
+            {
+                embeddedImages[image.Key] = image.Value;
             }
 
             wit.DescriptionHtml = HtmlImageRewriter.RewriteAttachmentUrls(wit.Description, embeddedImages);
+            wit.ReproStepsHtml = HtmlImageRewriter.RewriteAttachmentUrls(wit.ReproSteps, embeddedImages);
 
             var processedComments = comments
-                .Select(c => new
+                .Select(c =>
                 {
-                    Text = HtmlImageRewriter.RewriteAttachmentUrls(c.Text, embeddedImages),
-                    CreatedDate = c.RevisedDate != default ? c.RevisedDate.ToString("yyyy-MM-dd HH:mm") : "—",
-                    CreatedBy = GetCommentAuthor(c)
+                    var commentImages = imageService.ExtractAndDownloadImages(c.Text);
+                    foreach (var image in commentImages)
+                    {
+                        embeddedImages[image.Key] = image.Value;
+                    }
+
+                    return new
+                    {
+                        Text = HtmlImageRewriter.RewriteAttachmentUrls(c.Text, embeddedImages),
+                        EmbeddedImages = commentImages
+                            .Select(image => new
+                            {
+                                FileName = image.Value,
+                                Name = Path.GetFileName(image.Value)
+                            })
+                            .ToList(),
+                        CreatedDate = c.RevisedDate != default ? c.RevisedDate.ToString("yyyy-MM-dd HH:mm") : "—",
+                        CreatedBy = GetCommentAuthor(c)
+                    };
+                })
+                .ToList();
+
+            var descriptionImageLinks = descriptionImages
+                .Select(image => new
+                {
+                    FileName = image.Value,
+                    Name = Path.GetFileName(image.Value)
+                })
+                .ToList();
+
+            var reproStepsImageLinks = reproStepsImages
+                .Select(image => new
+                {
+                    FileName = image.Value,
+                    Name = Path.GetFileName(image.Value)
                 })
                 .ToList();
 
@@ -260,7 +301,9 @@ namespace Export.Services
             var result = template(new
             {
                 WorkItem = wit,
-                Comments = processedComments
+                Comments = processedComments,
+                DescriptionImages = descriptionImageLinks,
+                ReproStepsImages = reproStepsImageLinks
             });
             using var file = new StreamWriter(Path.Combine(folder, WriterService.IndexFile), false);
             await file.WriteAsync(result);
@@ -315,6 +358,19 @@ namespace Export.Services
             }
 
             return "Unknown";
+        }
+
+        private static string GetAnchorId(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return "overview";
+            }
+
+            var normalized = Regex.Replace(value.Trim().ToLowerInvariant(), "[^a-z0-9]+", "-");
+            normalized = Regex.Replace(normalized, "-{2,}", "-").Trim('-');
+
+            return string.IsNullOrWhiteSpace(normalized) ? "overview" : normalized;
         }
 
         /// <summary>
